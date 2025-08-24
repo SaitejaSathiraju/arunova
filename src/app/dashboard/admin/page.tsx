@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Property, supabase } from '@/lib/supabase'
+import { uploadPropertyImages, updatePropertyImages } from '@/lib/supabase-storage'
 import { 
   Building2, 
   Plus, 
@@ -66,13 +67,31 @@ export default function AdminDashboard() {
     try {
       setIsLoading(true)
       
+      let imageUrls: string[] = []
+      
+      // Upload images if any are selected
+      if (formData.images.length > 0) {
+        if (editingProperty) {
+          // Update existing property images
+          imageUrls = await updatePropertyImages(
+            formData.images, 
+            editingProperty.id, 
+            editingProperty.images || []
+          )
+        } else {
+          // Create temporary ID for new property
+          const tempId = `temp_${Date.now()}`
+          imageUrls = await uploadPropertyImages(formData.images, tempId)
+        }
+      }
+
       const propertyData = {
         title: formData.title,
         description: formData.description,
         rent: parseFloat(formData.rent),
         status: formData.status,
         location: formData.location,
-        images: [] // In real app, these would be uploaded to Supabase storage
+        images: imageUrls
       }
 
       if (editingProperty) {
@@ -280,6 +299,34 @@ export default function AdminDashboard() {
                   className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 />
                 <p className="mt-1 text-sm text-gray-500">Select multiple images (JPG, PNG, GIF)</p>
+                
+                {/* Image Preview */}
+                {formData.images.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Selected Images:</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {formData.images.map((file, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-20 object-cover rounded border"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newFiles = formData.images.filter((_, i) => i !== index)
+                              setFormData({...formData, images: newFiles})
+                            }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end space-x-3">
                 <button

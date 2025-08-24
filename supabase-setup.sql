@@ -1,107 +1,68 @@
--- Arunova Property Management Tool - Database Setup
--- Run this script in your Supabase SQL Editor
+-- Arunova Database Setup
+-- Run this in your Supabase SQL Editor
+-- Safe to run multiple times - won't create duplicates
 
--- Create the properties table
+-- Create properties table
 CREATE TABLE IF NOT EXISTS properties (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT NOT NULL,
   rent DECIMAL(10,2) NOT NULL,
-  status TEXT CHECK (status IN ('available', 'unavailable')) NOT NULL DEFAULT 'available',
+  status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'unavailable')),
   location TEXT NOT NULL,
   images TEXT[] DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create an index on status for faster filtering
+-- Create indexes for better performance (only if they don't exist)
 CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
-
--- Create an index on location for faster searching
+CREATE INDEX IF NOT EXISTS idx_properties_created_at ON properties(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_properties_location ON properties(location);
 
--- Create an index on rent for faster filtering
-CREATE INDEX IF NOT EXISTS idx_properties_rent ON properties(rent);
-
--- Create an index on created_at for faster sorting
-CREATE INDEX IF NOT EXISTS idx_properties_created_at ON properties(created_at);
-
--- Enable Row Level Security (RLS)
+-- Enable Row Level Security
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 
--- Create a policy that allows all authenticated users to read available properties
-CREATE POLICY "Allow read access to available properties" ON properties
-  FOR SELECT USING (status = 'available');
+-- Drop existing policies if they exist (to avoid conflicts)
+DROP POLICY IF EXISTS "Admin full access" ON properties;
+DROP POLICY IF EXISTS "Users can view available properties" ON properties;
 
--- Create a policy that allows admins to read all properties
-CREATE POLICY "Allow admins to read all properties" ON properties
-  FOR SELECT USING (true);
+-- Create RLS policies
+-- Policy for admins to have full access
+CREATE POLICY "Admin full access" ON properties
+FOR ALL USING (true);
 
--- Create a policy that allows admins to insert properties
-CREATE POLICY "Allow admins to insert properties" ON properties
-  FOR INSERT WITH CHECK (true);
+-- Policy for users to only see available properties
+CREATE POLICY "Users can view available properties" ON properties
+FOR SELECT USING (status = 'available');
 
--- Create a policy that allows admins to update properties
-CREATE POLICY "Allow admins to update properties" ON properties
-  FOR UPDATE USING (true);
-
--- Create a policy that allows admins to delete properties
-CREATE POLICY "Allow admins to delete properties" ON properties
-  FOR DELETE USING (true);
-
--- Create a function to automatically update the updated_at timestamp
+-- Create updated_at trigger function (only if it doesn't exist)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
+  NEW.updated_at = NOW();
+  RETURN NEW;
 END;
 $$ language 'plpgsql';
 
--- Create a trigger to automatically update the updated_at column
+-- Drop existing trigger if it exists, then create new one
+DROP TRIGGER IF EXISTS update_properties_updated_at ON properties;
 CREATE TRIGGER update_properties_updated_at 
-    BEFORE UPDATE ON properties 
-    FOR EACH ROW 
-    EXECUTE FUNCTION update_updated_at_column();
+  BEFORE UPDATE ON properties 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
 
--- Insert some sample properties for testing
-INSERT INTO properties (title, description, rent, status, location, images) VALUES
-(
-  'Modern Downtown Apartment',
-  'Beautiful 2-bedroom apartment in the heart of downtown with stunning city views, modern amenities, and convenient access to shopping and restaurants.',
-  2500.00,
-  'available',
-  'Downtown City Center',
-  ARRAY['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800', 'https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=800']
-),
-(
-  'Cozy Suburban House',
-  'Charming 3-bedroom house in a quiet suburban neighborhood with a large backyard, garage, and excellent school district.',
-  3200.00,
-  'available',
-  'Suburban Heights',
-  ARRAY['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800', 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800']
-),
-(
-  'Luxury Penthouse Suite',
-  'Exclusive penthouse with panoramic views, high-end finishes, private balcony, and access to building amenities including pool and gym.',
-  5500.00,
-  'unavailable',
-  'Luxury Tower District',
-  ARRAY['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800']
-),
-(
-  'Student-Friendly Studio',
-  'Affordable studio apartment perfect for students, close to university campus with basic amenities and utilities included.',
-  1200.00,
-  'available',
-  'University District',
-  ARRAY['https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=800']
-);
+-- Insert sample data (only if table is empty)
+INSERT INTO properties (title, description, rent, status, location, images) 
+SELECT * FROM (VALUES
+  ('Modern Downtown Apartment', 'Beautiful 2-bedroom apartment in the heart of downtown with city views.', 2500.00, 'available', 'Downtown', ARRAY['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800', 'https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=800']),
+  ('Cozy Suburban House', 'Charming 3-bedroom house with garden in quiet suburban neighborhood.', 3200.00, 'available', 'Suburbs', ARRAY['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800', 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800']),
+  ('Luxury Penthouse', 'Stunning penthouse with panoramic views and modern amenities.', 5500.00, 'unavailable', 'City Center', ARRAY['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800'])
+) AS v(title, description, rent, status, location, images)
+WHERE NOT EXISTS (SELECT 1 FROM properties LIMIT 1);
 
--- Grant necessary permissions
-GRANT ALL ON properties TO authenticated;
-GRANT ALL ON properties TO anon;
-
--- Enable realtime for the properties table (optional, for real-time updates)
-ALTER PUBLICATION supabase_realtime ADD TABLE properties;
+-- Note: For storage setup, go to Storage in your Supabase dashboard and:
+-- 1. Create a new bucket named 'property-images'
+-- 2. Make it public
+-- 3. Set file size limit to 50MB
+-- 4. Allow image/* MIME types
