@@ -11,8 +11,10 @@ import {
   DollarSign,
   Search,
   Filter,
-  Loader2
+  Loader2,
+  Image as ImageIcon
 } from 'lucide-react'
+import ImageGallery from '@/components/ImageGallery'
 
 export default function UserDashboard() {
   const { user, logout } = useAuth()
@@ -104,7 +106,7 @@ export default function UserDashboard() {
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">Search Properties</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
               <div className="relative">
@@ -168,6 +170,17 @@ export default function UserDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                 {filteredProperties.map((property) => (
                   <div key={property.id} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    {/* Property Image */}
+                    <div className="h-48 bg-gray-200 relative overflow-hidden">
+                      {property.images && property.images.length > 0 ? (
+                        <ImageGallery images={property.images} title={property.title} />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <ImageIcon className="h-12 w-12 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="text-lg font-medium text-gray-900">{property.title}</h4>
@@ -186,6 +199,15 @@ export default function UserDashboard() {
                           {property.location}
                         </div>
                       </div>
+                      
+                      {/* Image Count Indicator */}
+                      {property.images && property.images.length > 0 && (
+                        <div className="mt-2 flex items-center text-xs text-gray-500">
+                          <ImageIcon className="h-3 w-3 mr-1" />
+                          {property.images.length} image{property.images.length !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                      
                       <div className="mt-4">
                         <button className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                           View Details
@@ -202,3 +224,4 @@ export default function UserDashboard() {
     </div>
   )
 }
+

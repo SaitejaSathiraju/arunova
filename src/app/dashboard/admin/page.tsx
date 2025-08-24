@@ -14,8 +14,10 @@ import {
   MapPin,
   DollarSign,
   Calendar,
-  Loader2
+  Loader2,
+  Image as ImageIcon
 } from 'lucide-react'
+import ImageGallery from '@/components/ImageGallery'
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth()
@@ -330,6 +332,17 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                 {properties.map((property) => (
                   <div key={property.id} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    {/* Property Image */}
+                    <div className="h-48 bg-gray-200 relative overflow-hidden">
+                      {property.images && property.images.length > 0 ? (
+                        <ImageGallery images={property.images} title={property.title} />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <ImageIcon className="h-12 w-12 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="text-lg font-medium text-gray-900">{property.title}</h4>
@@ -352,6 +365,15 @@ export default function AdminDashboard() {
                           {property.location}
                         </div>
                       </div>
+                      
+                      {/* Image Count Indicator */}
+                      {property.images && property.images.length > 0 && (
+                        <div className="mt-2 flex items-center text-xs text-gray-500">
+                          <ImageIcon className="h-3 w-3 mr-1" />
+                          {property.images.length} image{property.images.length !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                      
                       <div className="mt-4 flex space-x-2">
                         <button
                           onClick={() => handleEdit(property)}
